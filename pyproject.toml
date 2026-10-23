@@ -1,0 +1,33 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "docparse"
+version = "1.2.1"
+description = "PaddleOCR document parser for PDFs and images with automatic routing"
+requires-python = ">=3.10"
+# PaddlePaddle itself is installed separately (CPU or GPU build) - see README
+dependencies = [
+    "paddleocr[doc-parser]>=3.3,<4",
+    "pdfplumber>=0.11",
+    "pypdfium2>=4.30",
+    "pillow>=10",
+    "numpy",
+    "fastapi>=0.110",
+    "uvicorn[standard]>=0.29",
+    "python-multipart>=0.0.9",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8", "httpx>=0.27", "reportlab>=4"]
+
+[project.scripts]
+docparse = "docparse.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+testpaths = ["tests"]

@@ -1,0 +1,36 @@
+# NVIDIA GPU image (CUDA 12.6). Host needs the NVIDIA driver + NVIDIA Container Toolkit.
+FROM nvidia/cuda:12.6.3-cudnn-runtime-ubuntu22.04
+
+ENV PYTHONUNBUFFERED=1 \
+    PIP_NO_CACHE_DIR=1 \
+    DEBIAN_FRONTEND=noninteractive \
+    PADDLE_PDX_CACHE_HOME=/models \
+    PADDLE_PDX_DISABLE_MODEL_SOURCE_CHECK=True \
+    # On GPU the bigger, more accurate models are cheap enough to use everywhere
+    DOCPARSE_DEVICE=gpu:0 \
+    DOCPARSE_DET_MODEL=PP-OCRv5_server_det \
+    DOCPARSE_REC_MODEL=PP-OCRv5_server_rec \
+    DOCPARSE_ROUTER_LAYOUT_MODEL=PP-DocLayout-M \
+    DOCPARSE_STRUCTURE_LAYOUT_MODEL=PP-DocLayout_plus-L
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        python3 python3-pip libgl1 libglib2.0-0 libgomp1 \
+    && rm -rf /var/lib/apt/lists/* \
+    && ln -sf /usr/bin/python3 /usr/bin/python
+
+RUN python -m pip install --upgrade pip \
+    && python -m pip install paddlepaddle-gpu==3.2.0 \
+       -i https://www.paddlepaddle.org.cn/packages/stable/cu126/
+
+WORKDIR /app
+COPY requirements.txt .
+# Everything except the CPU paddlepaddle line
+RUN grep -v '^paddlepaddle==' requirements.txt > req-gpu.txt && python -m pip install -r req-gpu.txt
+
+COPY pyproject.toml README.md ./
+COPY src ./src
+RUN python -m pip install --no-deps .
+
+# Models are downloaded on first start (no GPU is available during docker build).
+EXPOSE 8080
+CMD ["uvicorn", "docparse.api:app", "--host", "0.0.0.0", "--port", "8080", "--workers", "1"]

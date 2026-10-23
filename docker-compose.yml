@@ -1,0 +1,34 @@
+# docparse OCR service: private, reachable only through your local nginx gateway.
+#
+# The port is published on 127.0.0.1 (localhost) ONLY, so nothing outside this
+# machine can reach it directly. nginx, running on the same machine, forwards
+# https://<your-gateway>/ocr/...  ->  http://127.0.0.1:8080/...
+#
+# One-time setup:
+#   cp .env.example .env            # then set DOCPARSE_API_KEY (letters/digits only, no $)
+#
+# Start / update:
+#   docker compose up --build -d
+#   docker compose logs -f ocr      # wait for "Uvicorn running on http://0.0.0.0:8080"
+
+services:
+  ocr:
+    build: .
+    image: docparse:1.2.1
+    container_name: docparse
+    env_file: .env
+    environment:
+      DOCPARSE_API_KEY: "${DOCPARSE_API_KEY:?Set DOCPARSE_API_KEY in .env}"
+    ports:
+      # localhost only. Change the first 8080 if that port is already used on the
+      # server, and change proxy_pass in deploy/nginx/docparse.conf to match.
+      - "127.0.0.1:8080:8080"
+    shm_size: "2gb"
+    mem_limit: 8g                     # a bad file can't take the whole server down; adjust to your machine
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8080/health', timeout=5)"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 180s              # models take a while to load on first start
+    restart: unless-stopped
